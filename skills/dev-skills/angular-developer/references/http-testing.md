@@ -1,10 +1,10 @@
 # Test requests
 
-You must mock the HTTP backend so your tests can simulate interaction with a remote server. The `@angular/common/http/testing` library provides tools to capture requests made by the application, make assertions about them, and mock the responses to emulate your backend's behavior. The library is designed for a pattern where the app executes code and makes requests first. The test then expects that certain requests have or have not been made, performs assertions against those requests, and finally provides responses by "flushing" each expected request. Finally, tests can verify that the app made no unexpected requests.
+You must mock the HTTP backend so your tests can simulate interaction with a remote server. The `@angular/common/http/testing` library is designed for a pattern where the app executes code and makes requests first. The test then expects that certain requests have or have not been made, performs assertions against those requests, and finally provides responses by "flushing" each expected request. Finally, tests can verify that the app made no unexpected requests.
 
 ## Setup for testing
 
-To begin testing usage of `HttpClient`, configure `TestBed` and include `provideHttpClientTesting()` in your test's setup. `HttpClient` is provided by Angular's test environment, and `provideHttpClientTesting()` configures it to use a test backend instead of the real network. It also provides `HttpTestingController`, which you'll use to interact with the test backend, set expectations about which requests have been made, and flush responses to those requests. `HttpTestingController` can be injected from `TestBed` once configured.
+To begin testing usage of `HttpClient`, configure `TestBed` and include `provideHttpClientTesting()` in your test's setup. `HttpClient` is provided by Angular's test environment, and `provideHttpClientTesting()` configures it to use a test backend instead of the real network. It also provides `HttpTestingController`, which you'll use to interact with the test backend, set expectations about which requests have been made, and flush responses to those requests. `HttpTestingController` can make assertions about those requests once injected from `TestBed`.
 
 ```ts
 TestBed.configureTestingModule({
@@ -17,17 +17,9 @@ TestBed.configureTestingModule({
 const httpTesting = TestBed.inject(HttpTestingController);
 ```
 
-Now when your tests make requests, they will hit the testing backend instead of the normal one. You can use `httpTesting` to make assertions about those requests.
-
-### Configuring `HttpClient` in tests
+Now when your tests make requests, they will hit the testing backend instead of the normal one.
 
 If a test needs to configure `HttpClient` features, such as interceptors, include `provideHttpClient(...)` before `provideHttpClientTesting()`. Doing it the other way around can potentially break your tests.
-
-```ts
-TestBed.configureTestingModule({
-  providers: [provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
-});
-```
 
 ## Expecting and answering requests
 
@@ -40,7 +32,6 @@ TestBed.configureTestingModule({
 
 const httpTesting = TestBed.inject(HttpTestingController);
 
-// Load `ConfigService` and request the current configuration.
 const service = TestBed.inject(ConfigService);
 const config$ = service.getConfig<Config>();
 
@@ -48,26 +39,22 @@ const config$ = service.getConfig<Config>();
 // and creates a `Promise` of the response.
 const configPromise = firstValueFrom(config$);
 
-// At this point, the request is pending, and we can assert it was made
-// via the `HttpTestingController`:
 const req = httpTesting.expectOne('/api/config', 'Request to load the configuration');
 
 // We can assert various properties of the request if desired.
 expect(req.request.method).toBe('GET');
 
-// Flushing the request causes it to complete, delivering the result.
 req.flush(DEFAULT_CONFIG);
 
-// We can then assert that the response was successfully delivered by the `ConfigService`:
 expect(await configPromise).toEqual(DEFAULT_CONFIG);
 
-// Finally, we can assert that no other requests were made.
+// Assert that no other requests were made.
 httpTesting.verify();
 ```
 
 NOTE: `expectOne` will fail if the test has made more than one request which matches the given criteria.
 
-As an alternative to asserting on `req.method`, you could instead use an expanded form of `expectOne` to also match the request method:
+As an alternative to asserting on `req.method`, you could instead use an expanded form of `expectOne`
 
 ```ts
 const req = httpTesting.expectOne(
@@ -85,14 +72,13 @@ The last step, verifying that no requests remain outstanding, is common enough f
 
 ```ts
 afterEach(() => {
-  // Verify that no tests make any extra HTTP requests.
   TestBed.inject(HttpTestingController).verify();
 });
 ```
 
 ## Handling more than one request at once
 
-To respond to duplicate requests in your test, use the `match()` API instead of `expectOne()`. Once returned, these requests are removed from future matching and you are responsible for flushing and verifying them.
+To respond to duplicate requests, use the `match()` API instead of `expectOne()`. Once returned, these requests are removed from future matching and you are responsible for flushing and verifying them.
 
 ```ts
 const allGetRequests = httpTesting.match({method: 'GET'});
@@ -113,7 +99,6 @@ const requestsWithBody = httpTesting.expectOne((req) => req.body !== null);
 The `expectNone` function asserts that no requests match the given criteria.
 
 ```ts
-// Assert that no mutation requests have been issued.
 httpTesting.expectNone((req) => req.method !== 'GET');
 ```
 
@@ -128,8 +113,6 @@ To test handling of backend errors (when the server returns a non-successful sta
 ```ts
 const req = httpTesting.expectOne('/api/config');
 req.flush('Failed!', {status: 500, statusText: 'Internal Server Error'});
-
-// Assert that the application successfully handled the backend error.
 ```
 
 ### Network errors
@@ -139,8 +122,6 @@ Requests can fail due to network errors, which surface as `ProgressEvent` errors
 ```ts
 const req = httpTesting.expectOne('/api/config');
 req.error(new ProgressEvent('network error!'));
-
-// Assert that the application successfully handled the network error.
 ```
 
 ## Testing an Interceptor
@@ -152,12 +133,7 @@ export function authInterceptor(
   request: HttpRequest<unknown>,
   next: HttpHandlerFn,
 ): Observable<HttpEvent<unknown>> {
-  const authService = inject(AuthService);
-
-  const clonedRequest = request.clone({
-    headers: request.headers.append('X-Authentication-Token', authService.getAuthToken()),
-  });
-  return next(clonedRequest);
+  // Clones the request and appends a `'X-Authentication-Token'` header from an injected AuthService
 }
 ```
 
@@ -180,7 +156,6 @@ The `HttpTestingController` can retrieve the request instance that can then be i
 const service = TestBed.inject(AuthService);
 const http = TestBed.inject(HttpClient);
 
-// Make an HTTP request.
 const response = firstValueFrom(http.get('/api/config'));
 
 const req = httpTesting.expectOne('/api/config');
