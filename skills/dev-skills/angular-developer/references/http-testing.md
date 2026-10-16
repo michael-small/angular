@@ -1,6 +1,6 @@
 # Test requests
 
-As for any external dependency, you must mock the HTTP backend so your tests can simulate interaction with a remote server. The `@angular/common/http/testing` library provides tools to capture requests made by the application, make assertions about them, and mock the responses to emulate your backend's behavior.
+You must mock the HTTP backend so your tests can simulate interaction with a remote server. The `@angular/common/http/testing` library provides tools to capture requests made by the application, make assertions about them, and mock the responses to emulate your backend's behavior.
 
 The testing library is designed for a pattern where the app executes code and makes requests first. The test then expects that certain requests have or have not been made, performs assertions against those requests, and finally provides responses by "flushing" each expected request.
 
@@ -84,7 +84,7 @@ const req = httpTesting.expectOne(
 );
 ```
 
-HELPFUL: The expectation APIs match against the full URL of requests, including any query parameters.
+The expectation APIs match against the full URL of requests, including any query parameters.
 
 The last step, verifying that no requests remain outstanding, is common enough for you to move it into an `afterEach()` step:
 
@@ -97,7 +97,7 @@ afterEach(() => {
 
 ## Handling more than one request at once
 
-If you need to respond to duplicate requests in your test, use the `match()` API instead of `expectOne()`. It takes the same arguments but returns an array of matching requests. Once returned, these requests are removed from future matching and you are responsible for flushing and verifying them.
+To respond to duplicate requests in your test, use the `match()` API instead of `expectOne()`. It takes the same arguments but returns an array of matching requests. Once returned, these requests are removed from future matching and you are responsible for flushing and verifying them.
 
 ```ts
 const allGetRequests = httpTesting.match({method: 'GET'});
@@ -194,34 +194,4 @@ const response = firstValueFrom(http.get('/api/config'));
 const req = httpTesting.expectOne('/api/config');
 
 expect(req.request.headers.get('X-Authentication-Token')).toEqual(service.getAuthToken());
-```
-
-A similar interceptor could be implemented with class-based interceptors:
-
-```ts
-@Injectable()
-export class AuthInterceptor implements HttpInterceptor {
-  private authService = inject(AuthService);
-
-  intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    const clonedRequest = request.clone({
-      headers: request.headers.append('X-Authentication-Token', this.authService.getAuthToken()),
-    });
-    return next.handle(clonedRequest);
-  }
-}
-```
-
-In order to test it, the `TestBed` configuration should instead be:
-
-```ts
-TestBed.configureTestingModule({
-  providers: [
-    AuthService,
-    provideHttpClient(withInterceptorsFromDi()),
-    provideHttpClientTesting(),
-    // We rely on the HTTP_INTERCEPTORS token to register the AuthInterceptor as an HttpInterceptor
-    {provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true},
-  ],
-});
 ```
